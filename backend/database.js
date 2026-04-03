@@ -1,17 +1,9 @@
-const sqlite3 = require('sqlite3').verbose();
+const low    = require('lowdb');
+const FileSync = require('lowdb/adapters/FileSync');
 
-const db = new sqlite3.Database('expenses.db');
+const adapter = new FileSync('expenses.json');
+const db      = low(adapter);
 
-db.run(`
-  CREATE TABLE IF NOT EXISTS expenses (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    amount     REAL    NOT NULL,
-    category   TEXT    NOT NULL,
-    note       TEXT,
-    date       TEXT    NOT NULL,
-    time       TEXT    NOT NULL,
-    created_at TEXT    DEFAULT (datetime('now'))
-  )
-`);
+db.defaults({ expenses: [], nextId: 1 }).write();
 
 module.exports = db;

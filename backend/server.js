@@ -7,41 +7,34 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('../frontend'));
 
-// ➕ ADD a new expense
+// ➕ ADD expense
 app.post('/expenses', (req, res) => {
   const { amount, category, note, date, time } = req.body;
-  const query = 'INSERT INTO expenses (amount, category, note, date, time) VALUES (?, ?, ?, ?, ?)';
-  db.run(query, [amount, category, note || '', date, time], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true, id: this.lastID });
-  });
+  const id = db.get('nextId').value();
+  const expense = { id, amount, category, note: note || '', date, time };
+  db.get('expenses').push(expense).write();
+  db.update('nextId', n => n + 1).write();
+  res.json({ success: true, id });
 });
 
-// 📋 GET all expenses (with optional date filter)
+// 📋 GET expenses
 app.get('/expenses', (req, res) => {
   const { from, to } = req.query;
-  let query = 'SELECT * FROM expenses';
-  const params = [];
+  let expenses = db.get('expenses').value();
   if (from && to) {
-    query += ' WHERE date >= ? AND date <= ?';
-    params.push(from, to);
+    expenses = expenses.filter(e => e.date >= from && e.date <= to);
   }
-  query += ' ORDER BY date DESC, time DESC';
-  db.all(query, params, (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
-  });
+  expenses = expenses.slice().reverse();
+  res.json(expenses);
 });
 
-// 🗑️ DELETE an expense
+// 🗑️ DELETE expense
 app.delete('/expenses/:id', (req, res) => {
-  db.run('DELETE FROM expenses WHERE id = ?', [req.params.id], (err) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true });
-  });
+  const id = parseInt(req.params.id);
+  db.get('expenses').remove({ id }).write();
+  res.json({ success: true });
 });
 
-// Start the server on port 3000
 app.listen(3000, () => {
   console.log('Server running at http://localhost:3000');
 });
