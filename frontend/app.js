@@ -18,10 +18,13 @@ function showSection(name) {
   document.getElementById('section-' + name).classList.add('active');
   document.querySelectorAll('.nav-item')[['dashboard','add','history'].indexOf(name)].classList.add('active');
   const titles = { dashboard: 'Dashboard', add: 'Add Expense', history: 'All Expenses' };
-  const subs   = { dashboard: "Welcome back! Here's your spending overview.", add: 'Record a new expense entry.', history: 'Browse and filter all your expenses.' };
+  const subs   = { dashboard: "Welcome back! Here's your spending overview.", add: 'Record a new expense entry.', history: 'Browse, search and filter all your expenses.' };
   document.getElementById('page-title').textContent = titles[name];
   document.querySelector('.topbar-sub').textContent = subs[name];
-  if (name === 'history') renderTable('expense-table', allExpenses);
+  if (name === 'history') {
+    document.getElementById('search-input').value = '';
+    renderTable('expense-table', allExpenses);
+  }
 }
 
 async function fetchAll() {
@@ -36,11 +39,9 @@ function updateStats() {
   const ym = td.slice(0, 7);
   const yr = td.slice(0, 4);
   const sum = arr => arr.reduce((a, e) => a + e.amount, 0);
-
   const todayExp = allExpenses.filter(e => e.date === td);
   const monthExp = allExpenses.filter(e => e.date.startsWith(ym));
   const yearExp  = allExpenses.filter(e => e.date.startsWith(yr));
-
   document.getElementById('stat-today').textContent       = fmt(sum(todayExp));
   document.getElementById('stat-today-count').textContent = todayExp.length + ' transactions';
   document.getElementById('stat-month').textContent       = fmt(sum(monthExp));
@@ -51,10 +52,24 @@ function updateStats() {
   document.getElementById('stat-total-count').textContent = allExpenses.length + ' transactions';
 }
 
+// 🔍 SEARCH
+function searchExpenses() {
+  const query = document.getElementById('search-input').value.toLowerCase().trim();
+  if (!query) {
+    renderTable('expense-table', allExpenses);
+    return;
+  }
+  const filtered = allExpenses.filter(e =>
+    (e.note && e.note.toLowerCase().includes(query)) ||
+    e.category.toLowerCase().includes(query)
+  );
+  renderTable('expense-table', filtered);
+}
+
 function renderTable(containerId, expenses) {
   const container = document.getElementById(containerId);
   if (!expenses.length) {
-    container.innerHTML = '<table><tbody><tr class="empty-row"><td colspan="6">No expenses found. Add your first expense!</td></tr></tbody></table>';
+    container.innerHTML = '<table><tbody><tr class="empty-row"><td colspan="6">No expenses found.</td></tr></tbody></table>';
     return;
   }
   container.innerHTML = `
@@ -92,19 +107,16 @@ async function addExpense() {
   const date     = document.getElementById('date').value;
   const time     = document.getElementById('time').value;
   const msg      = document.getElementById('form-msg');
-
   if (!amount || amount <= 0) {
     msg.style.color = '#e74c3c';
     msg.textContent = 'Please enter a valid amount!';
     return;
   }
-
   await fetch(`${API}/expenses`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ amount, category, note, date, time })
   });
-
   document.getElementById('amount').value = '';
   document.getElementById('note').value   = '';
   msg.style.color = '#1D9E75';
@@ -131,6 +143,7 @@ async function loadExpenses() {
 function clearFilter() {
   document.getElementById('from').value = '';
   document.getElementById('to').value   = '';
+  document.getElementById('search-input').value = '';
   document.getElementById('total-display').style.display = 'none';
   renderTable('expense-table', allExpenses);
 }

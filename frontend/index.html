@@ -118,13 +118,21 @@
       <div class="card">
         <div class="card-header">
           <div class="card-title">All Expenses</div>
-          <div class="filter-row">
-            <input type="date" id="from" />
-            <input type="date" id="to" />
-            <button class="btn-sm" onclick="loadExpenses()">Filter</button>
-            <button class="btn-sm btn-outline" onclick="clearFilter()">Show All</button>
-          </div>
         </div>
+
+        <!-- SEARCH BAR -->
+        <div class="search-bar">
+          <input type="text" id="search-input" placeholder="🔍  Search by note or category..." oninput="searchExpenses()" />
+        </div>
+
+        <!-- FILTER ROW -->
+        <div class="filter-row" style="margin-bottom:16px">
+          <input type="date" id="from" />
+          <input type="date" id="to" />
+          <button class="btn-sm" onclick="loadExpenses()">Filter</button>
+          <button class="btn-sm btn-outline" onclick="clearFilter()">Show All</button>
+        </div>
+
         <div id="total-display"></div>
         <div id="expense-table"></div>
       </div>

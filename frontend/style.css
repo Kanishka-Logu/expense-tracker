@@ -362,3 +362,25 @@ input:focus, select:focus {
   border-radius: 8px;
   display: none;
 }
+/* SEARCH BAR */
+.search-bar {
+  margin-bottom: 14px;
+}
+
+.search-bar input {
+  width: 100%;
+  padding: 11px 16px;
+  border: 1px solid #e0e3ed;
+  border-radius: 10px;
+  font-size: 14px;
+  background: #fafbff;
+  font-family: 'Inter', sans-serif;
+  color: #1a1a2e;
+  transition: border 0.2s;
+}
+
+.search-bar input:focus {
+  outline: none;
+  border-color: #4f6ef7;
+  background: white;
+}
