@@ -413,3 +413,19 @@ input:focus, select:focus {
   border-radius: 50%;
   flex-shrink: 0;
 }
+/* EXPORT BUTTON */
+.btn-export {
+  background: #1D9E75;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.btn-export:hover { background: #158a63; }
