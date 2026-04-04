@@ -6,13 +6,20 @@ const db       = require('./database');
 
 const app = express();
 
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({
+  origin: 'https://expense-tracker-kanishkaa.netlify.app',
+  credentials: true
+}));
 app.use(express.json());
 app.use(session({
   secret: 'expense-tracker-secret-key',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000 } // 1 day
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: 'none',
+    secure: true
+  }
 }));
 app.use(express.static('../frontend'));
 
