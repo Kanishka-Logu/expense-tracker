@@ -11,162 +11,198 @@
 </head>
 <body>
 
-  <!-- SIDEBAR -->
-  <div class="sidebar">
-    <div class="sidebar-logo">
-      <span class="logo-icon">₹</span>
-      <span class="logo-text">ExpenseTrack</span>
+  <!-- LOGIN PAGE -->
+  <div id="login-page">
+    <div class="login-box">
+      <div class="login-logo">
+        <span class="logo-icon">₹</span>
+        <span class="logo-text">ExpenseTrack</span>
+      </div>
+      <div class="login-title">Welcome back</div>
+      <div class="login-sub">Sign in to your account</div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Username</label>
+        <input type="text" id="login-username" placeholder="Enter username" />
+      </div>
+      <div class="form-group" style="margin-bottom:20px">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="Enter password"
+          onkeydown="if(event.key==='Enter') login()" />
+      </div>
+      <button class="btn-primary" onclick="login()">Sign In</button>
+      <div id="login-error"></div>
+      <div class="login-hint">Default: admin / admin123</div>
     </div>
-    <nav class="sidebar-nav">
-      <a class="nav-item active" onclick="showSection('dashboard')">
-        <span class="nav-icon">▦</span> Dashboard
-      </a>
-      <a class="nav-item" onclick="showSection('add')">
-        <span class="nav-icon">＋</span> Add Expense
-      </a>
-      <a class="nav-item" onclick="showSection('history')">
-        <span class="nav-icon">☰</span> All Expenses
-      </a>
-      <a class="nav-item" onclick="showSection('charts')">
-        <span class="nav-icon">📊</span> Charts
-      </a>
-    </nav>
   </div>
 
-  <!-- MAIN CONTENT -->
-  <div class="main">
+  <!-- MAIN APP -->
+  <div id="app" style="display:none; display:flex">
 
-    <!-- TOP BAR -->
-    <div class="topbar">
-      <div>
-        <div class="topbar-title" id="page-title">Dashboard</div>
-        <div class="topbar-sub">Welcome back! Here's your spending overview.</div>
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-logo">
+        <span class="logo-icon">₹</span>
+        <span class="logo-text">ExpenseTrack</span>
       </div>
-      <div class="topbar-date" id="today-date"></div>
-    </div>
-
-    <!-- DASHBOARD SECTION -->
-    <div class="section active" id="section-dashboard">
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-label">Today's Spending</div>
-          <div class="stat-value" id="stat-today">₹0</div>
-          <div class="stat-sub" id="stat-today-count">0 transactions</div>
+      <nav class="sidebar-nav">
+        <a class="nav-item active" onclick="showSection('dashboard')">
+          <span class="nav-icon">▦</span> Dashboard
+        </a>
+        <a class="nav-item" onclick="showSection('add')">
+          <span class="nav-icon">＋</span> Add Expense
+        </a>
+        <a class="nav-item" onclick="showSection('history')">
+          <span class="nav-icon">☰</span> All Expenses
+        </a>
+        <a class="nav-item" onclick="showSection('charts')">
+          <span class="nav-icon">📊</span> Charts
+        </a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="user-info">
+          <div class="user-avatar" id="user-avatar">A</div>
+          <div class="user-name" id="user-name">admin</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">This Month</div>
-          <div class="stat-value" id="stat-month">₹0</div>
-          <div class="stat-sub" id="stat-month-count">0 transactions</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">This Year</div>
-          <div class="stat-value" id="stat-year">₹0</div>
-          <div class="stat-sub" id="stat-year-count">0 transactions</div>
-        </div>
-        <div class="stat-card stat-card-accent">
-          <div class="stat-label">Total Records</div>
-          <div class="stat-value" id="stat-total">₹0</div>
-          <div class="stat-sub" id="stat-total-count">0 transactions</div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Recent Expenses</div>
-          <a class="view-all" onclick="showSection('history')">View All →</a>
-        </div>
-        <div id="dashboard-table"></div>
+        <button class="logout-btn" onclick="logout()">Sign Out</button>
       </div>
     </div>
 
-    <!-- ADD EXPENSE SECTION -->
-    <div class="section" id="section-add">
-      <div class="card form-card">
-        <div class="card-title" style="margin-bottom:24px">New Expense Entry</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Amount (₹)</label>
-            <input type="number" id="amount" placeholder="0.00" />
-          </div>
-          <div class="form-group">
-            <label>Category</label>
-            <select id="category">
-              <option>Food</option>
-              <option>Transport</option>
-              <option>Shopping</option>
-              <option>Health</option>
-              <option>Bills</option>
-              <option>Entertainment</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div class="form-group full">
-            <label>Note (optional)</label>
-            <input type="text" id="note" placeholder="e.g. Lunch at Saravana Bhavan" />
-          </div>
-          <div class="form-group">
-            <label>Date</label>
-            <input type="date" id="date" />
-          </div>
-          <div class="form-group">
-            <label>Time</label>
-            <input type="time" id="time" />
-          </div>
-        </div>
-        <button class="btn-primary" onclick="addExpense()">+ Add Expense</button>
-        <div id="form-msg"></div>
-      </div>
-    </div>
+    <!-- MAIN CONTENT -->
+    <div class="main">
 
-    <!-- ALL EXPENSES SECTION -->
-    <div class="section" id="section-history">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">All Expenses</div>
-          <!-- EXPORT BUTTON -->
-          <button class="btn-export" onclick="exportToExcel()">⬇ Export to Excel</button>
+      <!-- TOP BAR -->
+      <div class="topbar">
+        <div>
+          <div class="topbar-title" id="page-title">Dashboard</div>
+          <div class="topbar-sub">Welcome back! Here's your spending overview.</div>
         </div>
-        <div class="search-bar">
-          <input type="text" id="search-input" placeholder="🔍  Search by note or category..." oninput="searchExpenses()" />
-        </div>
-        <div class="filter-row" style="margin-bottom:16px">
-          <input type="date" id="from" />
-          <input type="date" id="to" />
-          <button class="btn-sm" onclick="loadExpenses()">Filter</button>
-          <button class="btn-sm btn-outline" onclick="clearFilter()">Show All</button>
-        </div>
-        <div id="total-display"></div>
-        <div id="expense-table"></div>
+        <div class="topbar-date" id="today-date"></div>
       </div>
-    </div>
 
-    <!-- CHARTS SECTION -->
-    <div class="section" id="section-charts">
-      <div class="charts-grid">
+      <!-- DASHBOARD SECTION -->
+      <div class="section active" id="section-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Today's Spending</div>
+            <div class="stat-value" id="stat-today">₹0</div>
+            <div class="stat-sub" id="stat-today-count">0 transactions</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">This Month</div>
+            <div class="stat-value" id="stat-month">₹0</div>
+            <div class="stat-sub" id="stat-month-count">0 transactions</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">This Year</div>
+            <div class="stat-value" id="stat-year">₹0</div>
+            <div class="stat-sub" id="stat-year-count">0 transactions</div>
+          </div>
+          <div class="stat-card stat-card-accent">
+            <div class="stat-label">Total Records</div>
+            <div class="stat-value" id="stat-total">₹0</div>
+            <div class="stat-sub" id="stat-total-count">0 transactions</div>
+          </div>
+        </div>
         <div class="card">
-          <div class="card-title" style="margin-bottom:20px">Spending by Category</div>
-          <div class="chart-legend" id="pie-legend"></div>
+          <div class="card-header">
+            <div class="card-title">Recent Expenses</div>
+            <a class="view-all" onclick="showSection('history')">View All →</a>
+          </div>
+          <div id="dashboard-table"></div>
+        </div>
+      </div>
+
+      <!-- ADD EXPENSE SECTION -->
+      <div class="section" id="section-add">
+        <div class="card form-card">
+          <div class="card-title" style="margin-bottom:24px">New Expense Entry</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Amount (₹)</label>
+              <input type="number" id="amount" placeholder="0.00" />
+            </div>
+            <div class="form-group">
+              <label>Category</label>
+              <select id="category">
+                <option>Food</option>
+                <option>Transport</option>
+                <option>Shopping</option>
+                <option>Health</option>
+                <option>Bills</option>
+                <option>Entertainment</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="form-group full">
+              <label>Note (optional)</label>
+              <input type="text" id="note" placeholder="e.g. Lunch at Saravana Bhavan" />
+            </div>
+            <div class="form-group">
+              <label>Date</label>
+              <input type="date" id="date" />
+            </div>
+            <div class="form-group">
+              <label>Time</label>
+              <input type="time" id="time" />
+            </div>
+          </div>
+          <button class="btn-primary" onclick="addExpense()">+ Add Expense</button>
+          <div id="form-msg"></div>
+        </div>
+      </div>
+
+      <!-- ALL EXPENSES SECTION -->
+      <div class="section" id="section-history">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">All Expenses</div>
+            <button class="btn-export" onclick="exportToExcel()">⬇ Export to Excel</button>
+          </div>
+          <div class="search-bar">
+            <input type="text" id="search-input"
+              placeholder="🔍  Search by note or category..."
+              oninput="searchExpenses()" />
+          </div>
+          <div class="filter-row" style="margin-bottom:16px">
+            <input type="date" id="from" />
+            <input type="date" id="to" />
+            <button class="btn-sm" onclick="loadExpenses()">Filter</button>
+            <button class="btn-sm btn-outline" onclick="clearFilter()">Show All</button>
+          </div>
+          <div id="total-display"></div>
+          <div id="expense-table"></div>
+        </div>
+      </div>
+
+      <!-- CHARTS SECTION -->
+      <div class="section" id="section-charts">
+        <div class="charts-grid">
+          <div class="card">
+            <div class="card-title" style="margin-bottom:20px">Spending by Category</div>
+            <div class="chart-legend" id="pie-legend"></div>
+            <div style="position:relative;height:280px;">
+              <canvas id="pieChart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="margin-bottom:20px">Daily Spending (Last 14 Days)</div>
+            <div style="position:relative;height:320px;">
+              <canvas id="barChart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Monthly Summary</div>
+            <button class="btn-export" onclick="exportToExcel()">⬇ Export to Excel</button>
+          </div>
           <div style="position:relative;height:280px;">
-            <canvas id="pieChart"></canvas>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-title" style="margin-bottom:20px">Daily Spending (Last 14 Days)</div>
-          <div style="position:relative;height:320px;">
-            <canvas id="barChart"></canvas>
+            <canvas id="monthChart"></canvas>
           </div>
         </div>
       </div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Monthly Summary</div>
-          <button class="btn-export" onclick="exportToExcel()">⬇ Export to Excel</button>
-        </div>
-        <div style="position:relative;height:280px;">
-          <canvas id="monthChart"></canvas>
-        </div>
-      </div>
-    </div>
 
+    </div>
   </div>
 
   <script src="app.js"></script>
