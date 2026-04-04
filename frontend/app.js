@@ -3,6 +3,12 @@ const API = 'https://expense-tracker-backend-0mwv.onrender.com';
 let allExpenses = [];
 let pieChart, barChart, monthChart;
 let currentTableData = [];
+let authToken = localStorage.getItem('expense_token') || '';
+
+// ── HELPERS ──
+function authHeaders() {
+  return { 'Content-Type': 'application/json', 'x-auth-token': authToken };
+}
 
 // ── ON PAGE LOAD ──
 window.onload = async () => {
@@ -10,13 +16,12 @@ window.onload = async () => {
   document.getElementById('today-date').textContent = now.toLocaleDateString('en-IN', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
-  const status = await fetch(`${API}/auth/status`, { credentials: 'include' });
-  const data   = await status.json();
-  if (data.loggedIn) {
-    showApp(data.username);
-  } else {
-    showLoginPage();
+  if (authToken) {
+    const res  = await fetch(`${API}/auth/status`, { headers: authHeaders() });
+    const data = await res.json();
+    if (data.loggedIn) { showApp(data.username); return; }
   }
+  showLoginPage();
 };
 
 // ── LOGIN ──
@@ -24,21 +29,16 @@ async function login() {
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value;
   const errEl    = document.getElementById('login-error');
-
-  if (!username || !password) {
-    errEl.textContent = 'Please enter username and password!';
-    return;
-  }
-
+  if (!username || !password) { errEl.textContent = 'Please enter username and password!'; return; }
   const res  = await fetch(`${API}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
     body: JSON.stringify({ username, password })
   });
   const data = await res.json();
-
   if (data.success) {
+    authToken = data.token;
+    localStorage.setItem('expense_token', authToken);
     showApp(username);
   } else {
     errEl.textContent = 'Invalid username or password!';
@@ -47,17 +47,18 @@ async function login() {
 
 // ── LOGOUT ──
 async function logout() {
-  await fetch(`${API}/auth/logout`, { method: 'POST', credentials: 'include' });
-  document.getElementById('app').style.display        = 'none';
-  document.getElementById('login-page').style.display = 'flex';
-  document.getElementById('login-username').value = '';
-  document.getElementById('login-password').value = '';
-  document.getElementById('login-error').textContent  = '';
+  await fetch(`${API}/auth/logout`, { method: 'POST', headers: authHeaders() });
+  authToken = '';
+  localStorage.removeItem('expense_token');
+  showLoginPage();
 }
 
 function showLoginPage() {
   document.getElementById('login-page').style.display = 'flex';
   document.getElementById('app').style.display        = 'none';
+  document.getElementById('login-username').value     = '';
+  document.getElementById('login-password').value     = '';
+  document.getElementById('login-error').textContent  = '';
 }
 
 function showApp(username) {
@@ -91,7 +92,7 @@ function showSection(name) {
 
 // ── FETCH ALL ──
 async function fetchAll() {
-  const res = await fetch(`${API}/expenses`, { credentials: 'include' });
+  const res = await fetch(`${API}/expenses`, { headers: authHeaders() });
   if (res.status === 401) { showLoginPage(); return; }
   allExpenses      = await res.json();
   currentTableData = allExpenses;
@@ -126,15 +127,9 @@ async function addExpense() {
   const date     = document.getElementById('date').value;
   const time     = document.getElementById('time').value;
   const msg      = document.getElementById('form-msg');
-  if (!amount || amount <= 0) {
-    msg.style.color = '#e74c3c';
-    msg.textContent = 'Please enter a valid amount!';
-    return;
-  }
+  if (!amount || amount <= 0) { msg.style.color = '#e74c3c'; msg.textContent = 'Please enter a valid amount!'; return; }
   await fetch(`${API}/expenses`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
+    method: 'POST', headers: authHeaders(),
     body: JSON.stringify({ amount, category, note, date, time })
   });
   document.getElementById('amount').value = '';
@@ -151,7 +146,7 @@ async function loadExpenses() {
   const to   = document.getElementById('to').value;
   let url    = `${API}/expenses`;
   if (from && to) url += `?from=${from}&to=${to}`;
-  const res      = await fetch(url, { credentials: 'include' });
+  const res      = await fetch(url, { headers: authHeaders() });
   const expenses = await res.json();
   const total    = expenses.reduce((s, e) => s + e.amount, 0);
   const el       = document.getElementById('total-display');
@@ -174,7 +169,7 @@ function clearFilter() {
 // ── DELETE ──
 async function deleteExpense(id) {
   if (!confirm('Delete this expense?')) return;
-  await fetch(`${API}/expenses/${id}`, { method: 'DELETE', credentials: 'include' });
+  await fetch(`${API}/expenses/${id}`, { method: 'DELETE', headers: authHeaders() });
   await fetchAll();
   currentTableData = allExpenses;
   renderTable('expense-table', allExpenses);
@@ -183,14 +178,9 @@ async function deleteExpense(id) {
 // ── SEARCH ──
 function searchExpenses() {
   const query = document.getElementById('search-input').value.toLowerCase().trim();
-  if (!query) {
-    currentTableData = allExpenses;
-    renderTable('expense-table', allExpenses);
-    return;
-  }
+  if (!query) { currentTableData = allExpenses; renderTable('expense-table', allExpenses); return; }
   const filtered = allExpenses.filter(e =>
-    (e.note && e.note.toLowerCase().includes(query)) ||
-    e.category.toLowerCase().includes(query)
+    (e.note && e.note.toLowerCase().includes(query)) || e.category.toLowerCase().includes(query)
   );
   currentTableData = filtered;
   renderTable('expense-table', filtered);
@@ -205,12 +195,7 @@ function renderTable(containerId, expenses) {
   }
   container.innerHTML = `
     <table>
-      <thead>
-        <tr>
-          <th>#</th><th>Note</th><th>Category</th>
-          <th>Date & Time</th><th>Amount</th><th></th>
-        </tr>
-      </thead>
+      <thead><tr><th>#</th><th>Note</th><th>Category</th><th>Date & Time</th><th>Amount</th><th></th></tr></thead>
       <tbody>
         ${expenses.map((e, i) => `
           <tr>
@@ -229,42 +214,32 @@ function renderTable(containerId, expenses) {
 
 // ── EXPORT TO EXCEL ──
 function exportToExcel() {
-  if (currentTableData.length === 0) { alert('No expenses to export!'); return; }
-  const exportData = currentTableData.map((e, i) => ({
-    'S.No': i + 1, 'Date': e.date, 'Time': e.time,
-    'Category': e.category, 'Note': e.note || '-', 'Amount (₹)': e.amount
+  if (!currentTableData.length) { alert('No expenses to export!'); return; }
+  const data = currentTableData.map((e, i) => ({
+    'S.No': i+1, 'Date': e.date, 'Time': e.time,
+    'Category': e.category, 'Note': e.note||'-', 'Amount (₹)': e.amount
   }));
-  exportData.push({ 'S.No': '', 'Date': '', 'Time': '', 'Category': '', 'Note': 'TOTAL', 'Amount (₹)': currentTableData.reduce((s, e) => s + e.amount, 0) });
-  const worksheet = XLSX.utils.json_to_sheet(exportData);
-  const workbook  = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Expenses');
-  worksheet['!cols'] = [{ wch: 6 }, { wch: 12 }, { wch: 8 }, { wch: 14 }, { wch: 28 }, { wch: 12 }];
-  XLSX.writeFile(workbook, `expenses-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  data.push({ 'S.No':'','Date':'','Time':'','Category':'','Note':'TOTAL','Amount (₹)': currentTableData.reduce((s,e)=>s+e.amount,0) });
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Expenses');
+  ws['!cols'] = [{wch:6},{wch:12},{wch:8},{wch:14},{wch:28},{wch:12}];
+  XLSX.writeFile(wb, `expenses-${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
 // ── CHARTS ──
-function renderCharts() {
-  renderPieChart();
-  renderBarChart();
-  renderMonthChart();
-}
+function renderCharts() { renderPieChart(); renderBarChart(); renderMonthChart(); }
 
 function renderPieChart() {
-  const catColors = {
-    Food: '#3266ad', Transport: '#1D9E75', Shopping: '#D85A30',
-    Health: '#D4537E', Bills: '#7F77DD', Entertainment: '#BA7517', Other: '#888780'
-  };
+  const catColors = { Food:'#3266ad',Transport:'#1D9E75',Shopping:'#D85A30',Health:'#D4537E',Bills:'#7F77DD',Entertainment:'#BA7517',Other:'#888780' };
   const byCat = {};
-  allExpenses.forEach(e => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
+  allExpenses.forEach(e => { byCat[e.category] = (byCat[e.category]||0) + e.amount; });
   const labels = Object.keys(byCat);
   const data   = Object.values(byCat);
-  const colors = labels.map(l => catColors[l] || '#888');
-  const total  = data.reduce((a, b) => a + b, 0);
-  document.getElementById('pie-legend').innerHTML = labels.map((l, i) => `
-    <span class="legend-item">
-      <span class="legend-dot" style="background:${colors[i]}"></span>
-      ${l} (${Math.round(data[i] / total * 100)}%)
-    </span>
+  const colors = labels.map(l => catColors[l]||'#888');
+  const total  = data.reduce((a,b)=>a+b,0);
+  document.getElementById('pie-legend').innerHTML = labels.map((l,i) => `
+    <span class="legend-item"><span class="legend-dot" style="background:${colors[i]}"></span>${l} (${Math.round(data[i]/total*100)}%)</span>
   `).join('');
   if (pieChart) pieChart.destroy();
   pieChart = new Chart(document.getElementById('pieChart'), {
@@ -276,56 +251,31 @@ function renderPieChart() {
 
 function renderBarChart() {
   const last14 = [];
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    last14.push(d.toISOString().slice(0, 10));
-  }
+  for (let i=13;i>=0;i--) { const d=new Date(); d.setDate(d.getDate()-i); last14.push(d.toISOString().slice(0,10)); }
   const byDate = {};
-  allExpenses.forEach(e => { byDate[e.date] = (byDate[e.date] || 0) + e.amount; });
+  allExpenses.forEach(e => { byDate[e.date]=(byDate[e.date]||0)+e.amount; });
   if (barChart) barChart.destroy();
   barChart = new Chart(document.getElementById('barChart'), {
     type: 'bar',
-    data: {
-      labels: last14.map(d => d.slice(5)),
-      datasets: [{ data: last14.map(d => Math.round(byDate[d] || 0)), backgroundColor: '#4f6ef7', borderRadius: 6 }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#888', autoSkip: false, maxRotation: 45 } },
-        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 }, color: '#888', callback: v => '₹' + v.toLocaleString('en-IN') } }
-      }
-    }
+    data: { labels: last14.map(d=>d.slice(5)), datasets: [{ data: last14.map(d=>Math.round(byDate[d]||0)), backgroundColor:'#4f6ef7', borderRadius:6 }] },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales: { x:{grid:{display:false},ticks:{font:{size:11},color:'#888',autoSkip:false,maxRotation:45}}, y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},color:'#888',callback:v=>'₹'+v.toLocaleString('en-IN')}} } }
   });
 }
 
 function renderMonthChart() {
   const byMonth = {};
-  allExpenses.forEach(e => { const m = e.date.slice(0, 7); byMonth[m] = (byMonth[m] || 0) + e.amount; });
+  allExpenses.forEach(e => { const m=e.date.slice(0,7); byMonth[m]=(byMonth[m]||0)+e.amount; });
   const labels = Object.keys(byMonth).sort().slice(-6);
   if (monthChart) monthChart.destroy();
   monthChart = new Chart(document.getElementById('monthChart'), {
     type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        data: labels.map(m => Math.round(byMonth[m])),
-        borderColor: '#4f6ef7', backgroundColor: 'rgba(79,110,247,0.08)',
-        borderWidth: 2, pointBackgroundColor: '#4f6ef7', pointRadius: 5, tension: 0.4, fill: true
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#888' } },
-        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 }, color: '#888', callback: v => '₹' + v.toLocaleString('en-IN') } }
-      }
-    }
+    data: { labels, datasets: [{ data:labels.map(m=>Math.round(byMonth[m])), borderColor:'#4f6ef7', backgroundColor:'rgba(79,110,247,0.08)', borderWidth:2, pointBackgroundColor:'#4f6ef7', pointRadius:5, tension:0.4, fill:true }] },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales: { x:{grid:{display:false},ticks:{font:{size:11},color:'#888'}}, y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},color:'#888',callback:v=>'₹'+v.toLocaleString('en-IN')}} } }
   });
 }
 
 function fmt(n) {
-  return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits:0, maximumFractionDigits:0 });
 }

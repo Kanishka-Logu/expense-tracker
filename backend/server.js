@@ -1,8 +1,7 @@
-const express  = require('express');
-const cors     = require('cors');
-const bcrypt   = require('bcryptjs');
-const session  = require('express-session');
-const db       = require('./database');
+const express = require('express');
+const cors    = require('cors');
+const bcrypt  = require('bcryptjs');
+const db      = require('./database');
 
 const app = express();
 
@@ -11,21 +10,12 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-app.use(session({
-  secret: 'expense-tracker-secret-key',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    maxAge: 24 * 60 * 60 * 1000,
-    sameSite: 'none',
-    secure: true
-  }
-}));
 app.use(express.static('../frontend'));
 
-// ── DEFAULT ADMIN USER ──
-// Username: admin   Password: admin123
-// Change this after first login!
+// Simple token store
+const validTokens = new Set();
+
+// Default admin — username: admin  password: admin123
 const ADMIN = {
   username: 'admin',
   password: bcrypt.hashSync('admin123', 10)
@@ -33,38 +23,39 @@ const ADMIN = {
 
 // ── AUTH MIDDLEWARE ──
 function requireLogin(req, res, next) {
-  if (req.session && req.session.loggedIn) return next();
+  const token = req.headers['x-auth-token'];
+  if (token && validTokens.has(token)) return next();
   res.status(401).json({ error: 'Not logged in' });
 }
 
 // ── AUTH ROUTES ──
-
-// Check if logged in
 app.get('/auth/status', (req, res) => {
-  res.json({ loggedIn: !!req.session.loggedIn, username: req.session.username || '' });
+  const token = req.headers['x-auth-token'];
+  if (token && validTokens.has(token)) {
+    res.json({ loggedIn: true, username: 'admin' });
+  } else {
+    res.json({ loggedIn: false });
+  }
 });
 
-// Login
 app.post('/auth/login', (req, res) => {
   const { username, password } = req.body;
   if (username === ADMIN.username && bcrypt.compareSync(password, ADMIN.password)) {
-    req.session.loggedIn  = true;
-    req.session.username  = username;
-    res.json({ success: true });
+    const token = Math.random().toString(36).slice(2) + Date.now();
+    validTokens.add(token);
+    res.json({ success: true, token });
   } else {
     res.status(401).json({ error: 'Invalid username or password' });
   }
 });
 
-// Logout
 app.post('/auth/logout', (req, res) => {
-  req.session.destroy();
+  const token = req.headers['x-auth-token'];
+  validTokens.delete(token);
   res.json({ success: true });
 });
 
-// ── EXPENSE ROUTES (protected) ──
-
-// ➕ ADD expense
+// ── EXPENSE ROUTES ──
 app.post('/expenses', requireLogin, (req, res) => {
   const { amount, category, note, date, time } = req.body;
   const id = db.get('nextId').value();
@@ -74,24 +65,17 @@ app.post('/expenses', requireLogin, (req, res) => {
   res.json({ success: true, id });
 });
 
-// 📋 GET expenses
 app.get('/expenses', requireLogin, (req, res) => {
   const { from, to } = req.query;
   let expenses = db.get('expenses').value();
-  if (from && to) {
-    expenses = expenses.filter(e => e.date >= from && e.date <= to);
-  }
-  expenses = expenses.slice().reverse();
-  res.json(expenses);
+  if (from && to) expenses = expenses.filter(e => e.date >= from && e.date <= to);
+  res.json(expenses.slice().reverse());
 });
 
-// 🗑️ DELETE expense
 app.delete('/expenses/:id', requireLogin, (req, res) => {
   const id = parseInt(req.params.id);
   db.get('expenses').remove({ id }).write();
   res.json({ success: true });
 });
 
-app.listen(3000, () => {
-  console.log('Server running at http://localhost:3000');
-});
+app.listen(3000, () => console.log('Server running at http://localhost:3000'));
