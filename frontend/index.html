@@ -36,7 +36,7 @@
   </div>
 
   <!-- MAIN APP -->
-  <div id="app" style="display:none; display:flex">
+  <div id="app" style="display:none">
 
     <!-- SIDEBAR -->
     <div class="sidebar">
@@ -56,6 +56,9 @@
         </a>
         <a class="nav-item" onclick="showSection('charts')">
           <span class="nav-icon">📊</span> Charts
+        </a>
+        <a class="nav-item" onclick="showSection('import')">
+          <span class="nav-icon">📤</span> Import Statement
         </a>
       </nav>
       <div class="sidebar-bottom">
@@ -79,7 +82,7 @@
         <div class="topbar-date" id="today-date"></div>
       </div>
 
-      <!-- DASHBOARD SECTION -->
+      <!-- DASHBOARD -->
       <div class="section active" id="section-dashboard">
         <div class="stats-grid">
           <div class="stat-card">
@@ -112,7 +115,7 @@
         </div>
       </div>
 
-      <!-- ADD EXPENSE SECTION -->
+      <!-- ADD EXPENSE -->
       <div class="section" id="section-add">
         <div class="card form-card">
           <div class="card-title" style="margin-bottom:24px">New Expense Entry</div>
@@ -151,7 +154,7 @@
         </div>
       </div>
 
-      <!-- ALL EXPENSES SECTION -->
+      <!-- ALL EXPENSES -->
       <div class="section" id="section-history">
         <div class="card">
           <div class="card-header">
@@ -174,7 +177,7 @@
         </div>
       </div>
 
-      <!-- CHARTS SECTION -->
+      <!-- CHARTS -->
       <div class="section" id="section-charts">
         <div class="charts-grid">
           <div class="card">
@@ -198,6 +201,111 @@
           </div>
           <div style="position:relative;height:280px;">
             <canvas id="monthChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- IMPORT STATEMENT -->
+      <div class="section" id="section-import">
+        <div class="card form-card" style="max-width:100%">
+          <div class="card-title" style="margin-bottom:8px">Import Bank Statement</div>
+          <p style="font-size:13px;color:#888;margin-bottom:24px">
+            Upload your bank statement (Excel or CSV) to auto-import all UPI/GPay transactions.
+          </p>
+
+          <!-- STEP 1 -->
+          <div class="import-step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <div class="step-title">Select your bank</div>
+              <div class="step-sub">This helps us read your statement correctly</div>
+              <div class="bank-grid">
+                <div class="bank-btn active" onclick="selectBank(this, 'generic')">Generic / Any Bank</div>
+                <div class="bank-btn" onclick="selectBank(this, 'sbi')">SBI</div>
+                <div class="bank-btn" onclick="selectBank(this, 'hdfc')">HDFC</div>
+                <div class="bank-btn" onclick="selectBank(this, 'icici')">ICICI</div>
+                <div class="bank-btn" onclick="selectBank(this, 'axis')">Axis Bank</div>
+                <div class="bank-btn" onclick="selectBank(this, 'kotak')">Kotak</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 2 -->
+          <div class="import-step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <div class="step-title">Upload your statement file</div>
+              <div class="step-sub">Supports .xlsx, .xls, .csv files</div>
+              <div class="upload-area" onclick="document.getElementById('file-input').click()">
+                <div class="upload-icon">📂</div>
+                <div class="upload-text">Click to choose file</div>
+                <div class="upload-sub">.xlsx, .xls or .csv</div>
+                <input type="file" id="file-input" accept=".xlsx,.xls,.csv"
+                  style="display:none" onchange="handleFile(this)" />
+              </div>
+              <div id="file-name" style="font-size:13px;color:#4f6ef7;margin-top:8px;font-weight:500"></div>
+            </div>
+          </div>
+
+          <!-- STEP 3 — PREVIEW -->
+          <div class="import-step" id="step-preview" style="display:none">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <div class="step-title">Preview & confirm import</div>
+              <div class="step-sub" id="preview-count"></div>
+              <div id="preview-table" style="margin-top:16px;max-height:320px;overflow-y:auto"></div>
+              <div style="display:flex;gap:12px;margin-top:16px">
+                <button class="btn-primary" style="max-width:200px" onclick="importAll()">
+                  ✓ Import All
+                </button>
+                <button class="btn-sm btn-outline" onclick="cancelImport()">Cancel</button>
+              </div>
+              <div id="import-msg" style="margin-top:12px;font-size:13px;font-weight:500"></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- HOW TO DOWNLOAD -->
+        <div class="card" style="margin-top:20px">
+          <div class="card-title" style="margin-bottom:16px">How to download your bank statement</div>
+          <div class="bank-steps-grid">
+            <div class="bank-guide">
+              <div class="bank-guide-name">SBI</div>
+              <ol class="bank-guide-steps">
+                <li>Login to onlinesbi.sbi</li>
+                <li>Go to My Accounts → Account Statement</li>
+                <li>Select date range</li>
+                <li>Click Download as Excel</li>
+              </ol>
+            </div>
+            <div class="bank-guide">
+              <div class="bank-guide-name">HDFC</div>
+              <ol class="bank-guide-steps">
+                <li>Login to netbanking.hdfcbank.com</li>
+                <li>Go to My Accounts → Account Statement</li>
+                <li>Select date range</li>
+                <li>Download as CSV/Excel</li>
+              </ol>
+            </div>
+            <div class="bank-guide">
+              <div class="bank-guide-name">ICICI</div>
+              <ol class="bank-guide-steps">
+                <li>Login to icicibank.com</li>
+                <li>Go to Accounts → Statement</li>
+                <li>Select date range</li>
+                <li>Download as Excel</li>
+              </ol>
+            </div>
+            <div class="bank-guide">
+              <div class="bank-guide-name">Google Pay</div>
+              <ol class="bank-guide-steps">
+                <li>Open GPay app</li>
+                <li>Tap profile icon</li>
+                <li>Go to Transaction History</li>
+                <li>Download statement (PDF/CSV)</li>
+              </ol>
+            </div>
           </div>
         </div>
       </div>

@@ -535,3 +535,124 @@ input:focus, select:focus {
   background: rgba(255,255,255,0.15);
   color: white;
 }
+/* IMPORT SECTION */
+.import-step {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 28px;
+  align-items: flex-start;
+}
+
+.step-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #4f6ef7;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.step-content { flex: 1; }
+
+.step-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 4px;
+}
+
+.step-sub {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 14px;
+}
+
+/* BANK BUTTONS */
+.bank-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.bank-btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid #e0e3ed;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  color: #555;
+  background: white;
+  transition: all 0.2s;
+}
+
+.bank-btn:hover { border-color: #4f6ef7; color: #4f6ef7; }
+.bank-btn.active { background: #4f6ef7; color: white; border-color: #4f6ef7; }
+
+/* UPLOAD AREA */
+.upload-area {
+  border: 2px dashed #e0e3ed;
+  border-radius: 12px;
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fafbff;
+  max-width: 400px;
+}
+
+.upload-area:hover {
+  border-color: #4f6ef7;
+  background: #f0f4ff;
+}
+
+.upload-icon { font-size: 32px; margin-bottom: 8px; }
+
+.upload-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 4px;
+}
+
+.upload-sub { font-size: 12px; color: #aaa; }
+
+/* BANK GUIDE */
+.bank-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.bank-guide {
+  background: #fafbff;
+  border-radius: 10px;
+  padding: 16px;
+  border: 1px solid #e8eaf0;
+}
+
+.bank-guide-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 10px;
+}
+
+.bank-guide-steps {
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bank-guide-steps li {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.5;
+}

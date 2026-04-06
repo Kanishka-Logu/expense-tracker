@@ -1,9 +1,11 @@
 const API = 'https://expense-tracker-backend-0mwv.onrender.com';
 
-let allExpenses = [];
+let allExpenses    = [];
 let pieChart, barChart, monthChart;
 let currentTableData = [];
-let authToken = localStorage.getItem('expense_token') || '';
+let authToken      = localStorage.getItem('expense_token') || '';
+let importPreview  = [];
+let selectedBank   = 'generic';
 
 // ── HELPERS ──
 function authHeaders() {
@@ -77,9 +79,19 @@ function showSection(name) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('section-' + name).classList.add('active');
-  document.querySelectorAll('.nav-item')[['dashboard','add','history','charts'].indexOf(name)].classList.add('active');
-  const titles = { dashboard: 'Dashboard', add: 'Add Expense', history: 'All Expenses', charts: 'Charts & Analytics' };
-  const subs   = { dashboard: "Welcome back! Here's your spending overview.", add: 'Record a new expense entry.', history: 'Browse, search and filter all your expenses.', charts: 'Visual breakdown of your spending habits.' };
+  document.querySelectorAll('.nav-item')[['dashboard','add','history','charts','import'].indexOf(name)].classList.add('active');
+  const titles = {
+    dashboard: 'Dashboard', add: 'Add Expense',
+    history: 'All Expenses', charts: 'Charts & Analytics',
+    import: 'Import Bank Statement'
+  };
+  const subs = {
+    dashboard: "Welcome back! Here's your spending overview.",
+    add: 'Record a new expense entry.',
+    history: 'Browse, search and filter all your expenses.',
+    charts: 'Visual breakdown of your spending habits.',
+    import: 'Upload your bank statement to auto-import transactions.'
+  };
   document.getElementById('page-title').textContent = titles[name];
   document.querySelector('.topbar-sub').textContent = subs[name];
   if (name === 'history') {
@@ -127,7 +139,9 @@ async function addExpense() {
   const date     = document.getElementById('date').value;
   const time     = document.getElementById('time').value;
   const msg      = document.getElementById('form-msg');
-  if (!amount || amount <= 0) { msg.style.color = '#e74c3c'; msg.textContent = 'Please enter a valid amount!'; return; }
+  if (!amount || amount <= 0) {
+    msg.style.color = '#e74c3c'; msg.textContent = 'Please enter a valid amount!'; return;
+  }
   await fetch(`${API}/expenses`, {
     method: 'POST', headers: authHeaders(),
     body: JSON.stringify({ amount, category, note, date, time })
@@ -180,7 +194,8 @@ function searchExpenses() {
   const query = document.getElementById('search-input').value.toLowerCase().trim();
   if (!query) { currentTableData = allExpenses; renderTable('expense-table', allExpenses); return; }
   const filtered = allExpenses.filter(e =>
-    (e.note && e.note.toLowerCase().includes(query)) || e.category.toLowerCase().includes(query)
+    (e.note && e.note.toLowerCase().includes(query)) ||
+    e.category.toLowerCase().includes(query)
   );
   currentTableData = filtered;
   renderTable('expense-table', filtered);
@@ -219,12 +234,160 @@ function exportToExcel() {
     'S.No': i+1, 'Date': e.date, 'Time': e.time,
     'Category': e.category, 'Note': e.note||'-', 'Amount (₹)': e.amount
   }));
-  data.push({ 'S.No':'','Date':'','Time':'','Category':'','Note':'TOTAL','Amount (₹)': currentTableData.reduce((s,e)=>s+e.amount,0) });
+  data.push({ 'S.No':'','Date':'','Time':'','Category':'','Note':'TOTAL',
+    'Amount (₹)': currentTableData.reduce((s,e)=>s+e.amount,0) });
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Expenses');
   ws['!cols'] = [{wch:6},{wch:12},{wch:8},{wch:14},{wch:28},{wch:12}];
   XLSX.writeFile(wb, `expenses-${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ── BANK STATEMENT IMPORT ──
+function selectBank(el, bank) {
+  document.querySelectorAll('.bank-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  selectedBank = bank;
+}
+
+function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('file-name').textContent = '📄 ' + file.name;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const data     = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheet    = workbook.Sheets[workbook.SheetNames[0]];
+    const rows     = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    parseStatement(rows);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseStatement(rows) {
+  importPreview = [];
+  // Find header row
+  let headerIdx = 0;
+  for (let i = 0; i < Math.min(10, rows.length); i++) {
+    const row = rows[i].map(c => String(c).toLowerCase());
+    if (row.some(c => c.includes('date')) && row.some(c => c.includes('amount') || c.includes('debit'))) {
+      headerIdx = i; break;
+    }
+  }
+  const headers = rows[headerIdx].map(c => String(c).toLowerCase().trim());
+
+  // Find column indexes
+  const dateIdx   = headers.findIndex(h => h.includes('date'));
+  const debitIdx  = headers.findIndex(h => h.includes('debit') || h.includes('withdrawal') || h.includes('amount'));
+  const descIdx   = headers.findIndex(h => h.includes('description') || h.includes('narration') || h.includes('particulars') || h.includes('details') || h.includes('remarks'));
+
+  // Parse each row
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row    = rows[i];
+    if (!row || !row[dateIdx]) continue;
+    const rawAmt = parseFloat(String(row[debitIdx]).replace(/[^0-9.]/g, ''));
+    if (!rawAmt || rawAmt <= 0) continue;
+    const rawDate = String(row[dateIdx]).trim();
+    const date    = parseDate(rawDate);
+    if (!date) continue;
+    const note     = descIdx >= 0 ? String(row[descIdx]).trim() : 'Bank Transaction';
+    const category = detectCategory(note);
+    importPreview.push({ amount: rawAmt, category, note, date, time: '00:00' });
+  }
+
+  if (!importPreview.length) {
+    alert('No debit transactions found! Please check your file format.');
+    return;
+  }
+
+  showPreview();
+}
+
+function parseDate(raw) {
+  if (!raw) return null;
+  // Try different formats: DD-MM-YYYY, DD/MM/YYYY, YYYY-MM-DD, MM/DD/YYYY
+  let d;
+  if (/^\d{2}[-\/]\d{2}[-\/]\d{4}$/.test(raw)) {
+    const [dd, mm, yyyy] = raw.split(/[-\/]/);
+    d = new Date(`${yyyy}-${mm}-${dd}`);
+  } else if (/^\d{4}[-\/]\d{2}[-\/]\d{2}$/.test(raw)) {
+    d = new Date(raw);
+  } else {
+    d = new Date(raw);
+  }
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+function detectCategory(note) {
+  const n = note.toLowerCase();
+  if (/ola|uber|auto|cab|bus|train|metro|rapido|redbus|irctc|flight|airways/.test(n)) return 'Transport';
+  if (/swiggy|zomato|hotel|restaurant|cafe|food|kitchen|biryani|pizza|burger|eat|mess|canteen|bhavan|diner/.test(n)) return 'Food';
+  if (/amazon|flipkart|mall|bazaar|mart|shop|store|myntra|nykaa|meesho|ajio/.test(n)) return 'Shopping';
+  if (/hospital|pharmacy|medical|doctor|clinic|health|medicine|labs|diagnostic/.test(n)) return 'Health';
+  if (/electricity|water|gas|airtel|jio|bsnl|vodafone|broadband|bill|recharge|insurance|lic/.test(n)) return 'Bills';
+  if (/netflix|spotify|prime|hotstar|cinema|movie|theatre|concert|game/.test(n)) return 'Entertainment';
+  return 'Other';
+}
+
+function showPreview() {
+  document.getElementById('step-preview').style.display = 'flex';
+  document.getElementById('preview-count').textContent =
+    `Found ${importPreview.length} debit transactions ready to import`;
+  document.getElementById('preview-table').innerHTML = `
+    <table>
+      <thead>
+        <tr><th>#</th><th>Note</th><th>Category</th><th>Date</th><th>Amount</th></tr>
+      </thead>
+      <tbody>
+        ${importPreview.map((e, i) => `
+          <tr>
+            <td style="color:#bbb;font-size:12px">${i + 1}</td>
+            <td style="font-weight:500;font-size:13px">${e.note.slice(0, 40)}${e.note.length > 40 ? '...' : ''}</td>
+            <td><span class="badge badge-${e.category}">${e.category}</span></td>
+            <td style="color:#888;font-size:13px">${e.date}</td>
+            <td class="amount-cell">${fmt(e.amount)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  document.getElementById('import-msg').textContent = '';
+}
+
+async function importAll() {
+  if (!importPreview.length) return;
+  const msg = document.getElementById('import-msg');
+  msg.style.color   = '#888';
+  msg.textContent   = 'Importing...';
+  const res  = await fetch(`${API}/expenses/bulk`, {
+    method: 'POST', headers: authHeaders(),
+    body: JSON.stringify({ expenses: importPreview })
+  });
+  const data = await res.json();
+  if (data.success) {
+    msg.style.color = '#1D9E75';
+    msg.textContent = `✓ Successfully imported ${data.imported} transactions!`;
+    importPreview   = [];
+    fetchAll();
+    setTimeout(() => {
+      document.getElementById('step-preview').style.display = 'none';
+      document.getElementById('file-name').textContent = '';
+      document.getElementById('file-input').value = '';
+      showSection('history');
+    }, 2000);
+  } else {
+    msg.style.color = '#e74c3c';
+    msg.textContent = 'Import failed. Please try again.';
+  }
+}
+
+function cancelImport() {
+  importPreview = [];
+  document.getElementById('step-preview').style.display = 'none';
+  document.getElementById('file-name').textContent = '';
+  document.getElementById('file-input').value = '';
 }
 
 // ── CHARTS ──
@@ -233,7 +396,7 @@ function renderCharts() { renderPieChart(); renderBarChart(); renderMonthChart()
 function renderPieChart() {
   const catColors = { Food:'#3266ad',Transport:'#1D9E75',Shopping:'#D85A30',Health:'#D4537E',Bills:'#7F77DD',Entertainment:'#BA7517',Other:'#888780' };
   const byCat = {};
-  allExpenses.forEach(e => { byCat[e.category] = (byCat[e.category]||0) + e.amount; });
+  allExpenses.forEach(e => { byCat[e.category]=(byCat[e.category]||0)+e.amount; });
   const labels = Object.keys(byCat);
   const data   = Object.values(byCat);
   const colors = labels.map(l => catColors[l]||'#888');
@@ -245,7 +408,7 @@ function renderPieChart() {
   pieChart = new Chart(document.getElementById('pieChart'), {
     type: 'doughnut',
     data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
   });
 }
 
@@ -257,9 +420,10 @@ function renderBarChart() {
   if (barChart) barChart.destroy();
   barChart = new Chart(document.getElementById('barChart'), {
     type: 'bar',
-    data: { labels: last14.map(d=>d.slice(5)), datasets: [{ data: last14.map(d=>Math.round(byDate[d]||0)), backgroundColor:'#4f6ef7', borderRadius:6 }] },
+    data: { labels:last14.map(d=>d.slice(5)), datasets:[{data:last14.map(d=>Math.round(byDate[d]||0)),backgroundColor:'#4f6ef7',borderRadius:6}] },
     options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
-      scales: { x:{grid:{display:false},ticks:{font:{size:11},color:'#888',autoSkip:false,maxRotation:45}}, y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},color:'#888',callback:v=>'₹'+v.toLocaleString('en-IN')}} } }
+      scales:{ x:{grid:{display:false},ticks:{font:{size:11},color:'#888',autoSkip:false,maxRotation:45}},
+        y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},color:'#888',callback:v=>'₹'+v.toLocaleString('en-IN')}} } }
   });
 }
 
@@ -270,9 +434,12 @@ function renderMonthChart() {
   if (monthChart) monthChart.destroy();
   monthChart = new Chart(document.getElementById('monthChart'), {
     type: 'line',
-    data: { labels, datasets: [{ data:labels.map(m=>Math.round(byMonth[m])), borderColor:'#4f6ef7', backgroundColor:'rgba(79,110,247,0.08)', borderWidth:2, pointBackgroundColor:'#4f6ef7', pointRadius:5, tension:0.4, fill:true }] },
+    data: { labels, datasets:[{ data:labels.map(m=>Math.round(byMonth[m])), borderColor:'#4f6ef7',
+      backgroundColor:'rgba(79,110,247,0.08)', borderWidth:2, pointBackgroundColor:'#4f6ef7',
+      pointRadius:5, tension:0.4, fill:true }] },
     options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
-      scales: { x:{grid:{display:false},ticks:{font:{size:11},color:'#888'}}, y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},color:'#888',callback:v=>'₹'+v.toLocaleString('en-IN')}} } }
+      scales:{ x:{grid:{display:false},ticks:{font:{size:11},color:'#888'}},
+        y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},color:'#888',callback:v=>'₹'+v.toLocaleString('en-IN')}} } }
   });
 }
 

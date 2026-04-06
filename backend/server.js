@@ -77,5 +77,24 @@ app.delete('/expenses/:id', requireLogin, (req, res) => {
   db.get('expenses').remove({ id }).write();
   res.json({ success: true });
 });
-
+// 📤 BULK IMPORT expenses
+app.post('/expenses/bulk', requireLogin, (req, res) => {
+  const { expenses } = req.body;
+  if (!expenses || !expenses.length) return res.status(400).json({ error: 'No expenses provided' });
+  let imported = 0;
+  expenses.forEach(e => {
+    const id = db.get('nextId').value();
+    db.get('expenses').push({
+      id,
+      amount  : e.amount,
+      category: e.category,
+      note    : e.note || '',
+      date    : e.date,
+      time    : e.time || '00:00'
+    }).write();
+    db.update('nextId', n => n + 1).write();
+    imported++;
+  });
+  res.json({ success: true, imported });
+});
 app.listen(3000, () => console.log('Server running at http://localhost:3000'));
