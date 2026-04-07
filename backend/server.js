@@ -333,5 +333,7 @@ app.delete('/expenses/:id', requireLogin, (req, res) => {
   db.get('expenses').remove({ id: parseInt(req.params.id) }).write();
   res.json({ success: true });
 });
+// Health check route
+app.get('/ping', (req, res) => res.json({ status: 'alive' }));
 
 app.listen(3000, () => console.log('Server running at http://localhost:3000'));

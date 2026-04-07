@@ -497,3 +497,10 @@ function renderMonthChart() {
 function fmt(n) {
   return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits:0, maximumFractionDigits:0 });
 }
+// ── KEEP SERVER AWAKE ──
+// Pings backend every 10 minutes to prevent Render from sleeping
+setInterval(async () => {
+  try {
+    await fetch(`${API}/auth/status`, { headers: authHeaders() });
+  } catch (e) {}
+}, 10 * 60 * 1000);
