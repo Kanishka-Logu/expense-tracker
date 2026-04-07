@@ -79,18 +79,20 @@ function showSection(name) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('section-' + name).classList.add('active');
-  document.querySelectorAll('.nav-item')[['dashboard','add','history','charts','import'].indexOf(name)].classList.add('active');
+  const navNames = ['dashboard','add','history','charts','import','settings'];
+  document.querySelectorAll('.nav-item')[navNames.indexOf(name)].classList.add('active');
   const titles = {
     dashboard: 'Dashboard', add: 'Add Expense',
     history: 'All Expenses', charts: 'Charts & Analytics',
-    import: 'Import Bank Statement'
+    import: 'Import Bank Statement', settings: 'Email Settings'
   };
   const subs = {
     dashboard: "Welcome back! Here's your spending overview.",
     add: 'Record a new expense entry.',
     history: 'Browse, search and filter all your expenses.',
     charts: 'Visual breakdown of your spending habits.',
-    import: 'Upload your bank statement to auto-import transactions.'
+    import: 'Upload your bank statement to auto-import transactions.',
+    settings: 'Configure weekly email summary settings.'
   };
   document.getElementById('page-title').textContent = titles[name];
   document.querySelector('.topbar-sub').textContent = subs[name];
@@ -100,6 +102,7 @@ function showSection(name) {
     renderTable('expense-table', allExpenses);
   }
   if (name === 'charts') renderCharts();
+  if (name === 'settings') loadEmailSettings();
 }
 
 // ── FETCH ALL ──
@@ -243,7 +246,68 @@ function exportToExcel() {
   XLSX.writeFile(wb, `expenses-${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
-// ── BANK STATEMENT IMPORT ──
+// ── EMAIL SETTINGS ──
+async function loadEmailSettings() {
+  const res  = await fetch(`${API}/settings/email`, { headers: authHeaders() });
+  const data = await res.json();
+  document.getElementById('setting-email').value   = data.email || '';
+  document.getElementById('setting-enabled').checked = data.enabled || false;
+}
+
+async function saveEmailSettings() {
+  const email       = document.getElementById('setting-email').value.trim();
+  const appPassword = document.getElementById('setting-password').value.trim();
+  const enabled     = document.getElementById('setting-enabled').checked;
+  const msg         = document.getElementById('settings-msg');
+  if (!email) { msg.style.color = '#e74c3c'; msg.textContent = 'Please enter your email!'; return; }
+  if (!appPassword) { msg.style.color = '#e74c3c'; msg.textContent = 'Please enter your App Password!'; return; }
+  const res  = await fetch(`${API}/settings/email`, {
+    method: 'POST', headers: authHeaders(),
+    body: JSON.stringify({ email, appPassword, enabled })
+  });
+  const data = await res.json();
+  if (data.success) {
+    msg.style.color = '#1D9E75';
+    msg.textContent = '✓ Email settings saved successfully!';
+    setTimeout(() => msg.textContent = '', 3000);
+  }
+}
+
+async function sendTestEmail() {
+  const msg = document.getElementById('settings-msg');
+  msg.style.color   = '#888';
+  msg.textContent   = 'Sending test email...';
+  const res  = await fetch(`${API}/settings/email/test`, {
+    method: 'POST', headers: authHeaders()
+  });
+  const data = await res.json();
+  if (data.success) {
+    msg.style.color = '#1D9E75';
+    msg.textContent = '✓ Test email sent! Check your inbox.';
+  } else {
+    msg.style.color = '#e74c3c';
+    msg.textContent = 'Error: ' + (data.error || 'Failed to send email');
+  }
+}
+
+async function sendNowEmail() {
+  const msg = document.getElementById('settings-msg');
+  msg.style.color   = '#888';
+  msg.textContent   = 'Sending weekly report...';
+  const res  = await fetch(`${API}/settings/email/send-now`, {
+    method: 'POST', headers: authHeaders()
+  });
+  const data = await res.json();
+  if (data.success) {
+    msg.style.color = '#1D9E75';
+    msg.textContent = '✓ Weekly report sent! Check your inbox.';
+  } else {
+    msg.style.color = '#e74c3c';
+    msg.textContent = 'Failed to send report. Check your email settings.';
+  }
+}
+
+// ── BANK IMPORT ──
 function selectBank(el, bank) {
   document.querySelectorAll('.bank-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
@@ -267,7 +331,6 @@ function handleFile(input) {
 
 function parseStatement(rows) {
   importPreview = [];
-  // Find header row
   let headerIdx = 0;
   for (let i = 0; i < Math.min(10, rows.length); i++) {
     const row = rows[i].map(c => String(c).toLowerCase());
@@ -275,38 +338,29 @@ function parseStatement(rows) {
       headerIdx = i; break;
     }
   }
-  const headers = rows[headerIdx].map(c => String(c).toLowerCase().trim());
+  const headers  = rows[headerIdx].map(c => String(c).toLowerCase().trim());
+  const dateIdx  = headers.findIndex(h => h.includes('date'));
+  const debitIdx = headers.findIndex(h => h.includes('debit') || h.includes('withdrawal') || h.includes('amount'));
+  const descIdx  = headers.findIndex(h => h.includes('description') || h.includes('narration') || h.includes('particulars') || h.includes('details') || h.includes('remarks'));
 
-  // Find column indexes
-  const dateIdx   = headers.findIndex(h => h.includes('date'));
-  const debitIdx  = headers.findIndex(h => h.includes('debit') || h.includes('withdrawal') || h.includes('amount'));
-  const descIdx   = headers.findIndex(h => h.includes('description') || h.includes('narration') || h.includes('particulars') || h.includes('details') || h.includes('remarks'));
-
-  // Parse each row
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const row    = rows[i];
     if (!row || !row[dateIdx]) continue;
     const rawAmt = parseFloat(String(row[debitIdx]).replace(/[^0-9.]/g, ''));
     if (!rawAmt || rawAmt <= 0) continue;
-    const rawDate = String(row[dateIdx]).trim();
-    const date    = parseDate(rawDate);
+    const date = parseDate(String(row[dateIdx]).trim());
     if (!date) continue;
     const note     = descIdx >= 0 ? String(row[descIdx]).trim() : 'Bank Transaction';
     const category = detectCategory(note);
     importPreview.push({ amount: rawAmt, category, note, date, time: '00:00' });
   }
 
-  if (!importPreview.length) {
-    alert('No debit transactions found! Please check your file format.');
-    return;
-  }
-
+  if (!importPreview.length) { alert('No debit transactions found!'); return; }
   showPreview();
 }
 
 function parseDate(raw) {
   if (!raw) return null;
-  // Try different formats: DD-MM-YYYY, DD/MM/YYYY, YYYY-MM-DD, MM/DD/YYYY
   let d;
   if (/^\d{2}[-\/]\d{2}[-\/]\d{4}$/.test(raw)) {
     const [dd, mm, yyyy] = raw.split(/[-\/]/);
@@ -337,14 +391,12 @@ function showPreview() {
     `Found ${importPreview.length} debit transactions ready to import`;
   document.getElementById('preview-table').innerHTML = `
     <table>
-      <thead>
-        <tr><th>#</th><th>Note</th><th>Category</th><th>Date</th><th>Amount</th></tr>
-      </thead>
+      <thead><tr><th>#</th><th>Note</th><th>Category</th><th>Date</th><th>Amount</th></tr></thead>
       <tbody>
         ${importPreview.map((e, i) => `
           <tr>
             <td style="color:#bbb;font-size:12px">${i + 1}</td>
-            <td style="font-weight:500;font-size:13px">${e.note.slice(0, 40)}${e.note.length > 40 ? '...' : ''}</td>
+            <td style="font-weight:500;font-size:13px">${e.note.slice(0,40)}${e.note.length>40?'...':''}</td>
             <td><span class="badge badge-${e.category}">${e.category}</span></td>
             <td style="color:#888;font-size:13px">${e.date}</td>
             <td class="amount-cell">${fmt(e.amount)}</td>
@@ -359,8 +411,7 @@ function showPreview() {
 async function importAll() {
   if (!importPreview.length) return;
   const msg = document.getElementById('import-msg');
-  msg.style.color   = '#888';
-  msg.textContent   = 'Importing...';
+  msg.style.color = '#888'; msg.textContent = 'Importing...';
   const res  = await fetch(`${API}/expenses/bulk`, {
     method: 'POST', headers: authHeaders(),
     body: JSON.stringify({ expenses: importPreview })

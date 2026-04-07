@@ -60,6 +60,9 @@
         <a class="nav-item" onclick="showSection('import')">
           <span class="nav-icon">📤</span> Import Statement
         </a>
+        <a class="nav-item" onclick="showSection('settings')">
+          <span class="nav-icon">⚙</span> Email Settings
+        </a>
       </nav>
       <div class="sidebar-bottom">
         <div class="user-info">
@@ -212,8 +215,6 @@
           <p style="font-size:13px;color:#888;margin-bottom:24px">
             Upload your bank statement (Excel or CSV) to auto-import all UPI/GPay transactions.
           </p>
-
-          <!-- STEP 1 -->
           <div class="import-step">
             <div class="step-number">1</div>
             <div class="step-content">
@@ -229,8 +230,6 @@
               </div>
             </div>
           </div>
-
-          <!-- STEP 2 -->
           <div class="import-step">
             <div class="step-number">2</div>
             <div class="step-content">
@@ -246,8 +245,6 @@
               <div id="file-name" style="font-size:13px;color:#4f6ef7;margin-top:8px;font-weight:500"></div>
             </div>
           </div>
-
-          <!-- STEP 3 — PREVIEW -->
           <div class="import-step" id="step-preview" style="display:none">
             <div class="step-number">3</div>
             <div class="step-content">
@@ -255,18 +252,14 @@
               <div class="step-sub" id="preview-count"></div>
               <div id="preview-table" style="margin-top:16px;max-height:320px;overflow-y:auto"></div>
               <div style="display:flex;gap:12px;margin-top:16px">
-                <button class="btn-primary" style="max-width:200px" onclick="importAll()">
-                  ✓ Import All
-                </button>
+                <button class="btn-primary" style="max-width:200px" onclick="importAll()">✓ Import All</button>
                 <button class="btn-sm btn-outline" onclick="cancelImport()">Cancel</button>
               </div>
               <div id="import-msg" style="margin-top:12px;font-size:13px;font-weight:500"></div>
             </div>
           </div>
-
         </div>
 
-        <!-- HOW TO DOWNLOAD -->
         <div class="card" style="margin-top:20px">
           <div class="card-title" style="margin-bottom:16px">How to download your bank statement</div>
           <div class="bank-steps-grid">
@@ -303,10 +296,86 @@
                 <li>Open GPay app</li>
                 <li>Tap profile icon</li>
                 <li>Go to Transaction History</li>
-                <li>Download statement (PDF/CSV)</li>
+                <li>Download statement</li>
               </ol>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- EMAIL SETTINGS -->
+      <div class="section" id="section-settings">
+        <div class="card form-card">
+          <div class="card-title" style="margin-bottom:8px">Email Settings</div>
+          <p style="font-size:13px;color:#888;margin-bottom:24px">
+            Configure your Gmail to receive weekly expense summaries every Monday at 8:00 AM.
+          </p>
+
+          <!-- STEP 1 -->
+          <div class="import-step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <div class="step-title">Enter your Gmail address</div>
+              <div class="step-sub">Weekly summary will be sent to this email</div>
+              <div class="form-group" style="max-width:400px">
+                <label>Gmail Address</label>
+                <input type="email" id="setting-email" placeholder="yourname@gmail.com" />
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 2 -->
+          <div class="import-step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <div class="step-title">Generate Gmail App Password</div>
+              <div class="step-sub">Required because Gmail blocks direct password access</div>
+              <div class="how-to-box">
+                <div class="how-to-title">How to get Gmail App Password:</div>
+                <ol class="how-to-steps">
+                  <li>Go to <strong>myaccount.google.com</strong></li>
+                  <li>Click <strong>Security</strong> on the left</li>
+                  <li>Enable <strong>2-Step Verification</strong> (if not already)</li>
+                  <li>Search for <strong>"App passwords"</strong> in the search bar</li>
+                  <li>Select app: <strong>Mail</strong> → Select device: <strong>Other</strong></li>
+                  <li>Type <strong>"ExpenseTrack"</strong> → Click Generate</li>
+                  <li>Copy the <strong>16-character password</strong> shown</li>
+                </ol>
+              </div>
+              <div class="form-group" style="max-width:400px;margin-top:16px">
+                <label>App Password (16 characters)</label>
+                <input type="password" id="setting-password" placeholder="xxxx xxxx xxxx xxxx" />
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 3 -->
+          <div class="import-step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <div class="step-title">Enable weekly emails</div>
+              <div class="step-sub">Turn on automatic weekly summaries</div>
+              <label class="toggle-label">
+                <input type="checkbox" id="setting-enabled" />
+                <span class="toggle-switch"></span>
+                <span style="font-size:14px;color:#1a1a2e;font-weight:500">Send weekly summary every Monday</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- BUTTONS -->
+          <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap">
+            <button class="btn-primary" style="max-width:200px" onclick="saveEmailSettings()">
+              💾 Save Settings
+            </button>
+            <button class="btn-sm" style="background:#1D9E75;color:white;border:none" onclick="sendTestEmail()">
+              📧 Send Test Email
+            </button>
+            <button class="btn-sm btn-outline" onclick="sendNowEmail()">
+              ▶ Send Weekly Report Now
+            </button>
+          </div>
+          <div id="settings-msg" style="margin-top:14px;font-size:13px;font-weight:500"></div>
         </div>
       </div>
 
