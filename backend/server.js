@@ -2,6 +2,7 @@ const express   = require('express');
 const cors      = require('cors');
 const bcrypt    = require('bcryptjs');
 const nodemailer = require('nodemailer');
+const mailer     = nodemailer.default || nodemailer;
 const cron      = require('node-cron');
 const db        = require('./database');
 
@@ -33,7 +34,7 @@ function getEmailConfig() {
 function createTransporter() {
   const config = getEmailConfig();
   if (!config.email || !config.appPassword) return null;
-  return nodemailer.createTransporter({
+  return mailer.createTransport({
     service: 'gmail',
     auth: {
       user: config.email,
@@ -41,7 +42,6 @@ function createTransporter() {
     }
   });
 }
-
 // ── WEEKLY EMAIL FUNCTION ──
 async function sendWeeklyEmail() {
   const config = getEmailConfig();
